@@ -32,6 +32,53 @@ export const SETTINGS_DOMAINS = freezeEntries([
   { id: 'modules', labelKey: 'settings.domainModules', icon: 'layout-grid', adminOnly: false },
 ]);
 
+let extensionSettingsLeaves = [];
+let extensionSettingsSections = [];
+
+/** Refresh settings sheets from the same enabled module list used by navigation. */
+export function setExtensionSettingsModules(modules) {
+  const enabled = (Array.isArray(modules) ? modules : [])
+    .filter((module) => module?.enabled && module.status === 'enabled' && module.settings?.entry);
+  extensionSettingsLeaves = enabled.map((module) => Object.freeze({
+    id: `extension-${module.id}`,
+    domainId: 'modules',
+    path: `/settings/modules/ext/${module.id}`,
+    icon: module.icon,
+    module: `third-party-${module.id}`,
+    extensionModule: module,
+  }));
+  extensionSettingsSections = enabled.map((module) => Object.freeze({
+    id: `extension-${module.id}`,
+    sheetId: `extension-${module.id}`,
+    scope: module.settings.adminOnly ? 'household' : 'mine',
+    adminOnly: module.settings.adminOnly,
+    loader: () => import(/* webpackIgnore: true */ module.settings.entry),
+  }));
+}
+
+export function extensionSettingsPaths() {
+  return extensionSettingsLeaves.map((leaf) => leaf.path);
+}
+
+export function settingsLeafLabel(leaf, translate) {
+  const module = leaf?.extensionModule;
+  if (!module) return translate(leaf.labelKey);
+  const key = module.settings.labelKey || module.menu?.labelKey;
+  if (key) {
+    const fullKey = key.startsWith('extensions.') ? key : `extensions.${module.id}.${key}`;
+    const value = translate(fullKey);
+    if (value !== fullKey) return value;
+  }
+  return module.menu?.label || module.name || module.id;
+}
+
+export function settingsLeafDescription(leaf, translate) {
+  return leaf?.extensionModule?.description || (leaf?.descriptionKey ? translate(leaf.descriptionKey) : '');
+}
+
+function allSettingsLeaves() { return [...SETTINGS_LEAVES, ...extensionSettingsLeaves]; }
+function allSettingsSections() { return [...SETTINGS_SECTIONS, ...extensionSettingsSections]; }
+
 /** Reichweite eines Abschnitts: meine Vorgaben oder die des ganzen Haushalts. */
 export const SETTINGS_SCOPES = Object.freeze(['mine', 'household']);
 
@@ -788,7 +835,7 @@ function sectionVisible(section, user) {
 
 /** Die Abschnitte eines Blatts in Anzeigereihenfolge: erst "Fuer mich", dann der Haushalt. */
 export function settingsSheetSections(sheet, user = null, { all = false } = {}) {
-  const sections = SETTINGS_SECTIONS.filter((section) => section.sheetId === sheet?.id
+  const sections = allSettingsSections().filter((section) => section.sheetId === sheet?.id
     && (all || sectionVisible(section, user)));
   return SETTINGS_SCOPES.flatMap((scope) => sections.filter((section) => section.scope === scope));
 }
@@ -840,7 +887,7 @@ function currentModuleOrder() {
  * `placement: 'end'` ("Eigenes Modul hinzufuegen" schliesst die Liste ab).
  */
 export function settingsSheetsForDomain(domainId, user, { moduleOrder = currentModuleOrder() } = {}) {
-  const visible = SETTINGS_LEAVES.filter((sheet) => sheet.domainId === domainId && sheetVisible(sheet, user));
+  const visible = allSettingsLeaves().filter((sheet) => sheet.domainId === domainId && sheetVisible(sheet, user));
   const end = visible.filter((sheet) => sheet.placement === 'end');
   const sheets = visible.filter((sheet) => sheet.placement !== 'end');
   if (!sheets.some((sheet) => sheet.module)) return [...sheets, ...end];
@@ -907,7 +954,7 @@ export function movedSettingsUrl(path, search = '') {
 
 export function findSettingsLeaf(path, user) {
   const target = currentSettingsPath(path);
-  const sheet = SETTINGS_LEAVES.find((entry) => entry.path === target);
+  const sheet = allSettingsLeaves().find((entry) => entry.path === target);
   if (!sheet || !sheetVisible(sheet, user)) return null;
   return sheet;
 }
@@ -1029,11 +1076,11 @@ export function searchSettings(query, { user, translate }) {
   const needle = normalizeSettingsSearch(String(query ?? '').trim());
   if (!needle) return { leaves: [], sections: [], options: [] };
   const domainLabels = new Map(filterSettingsDomains(user).map((domain) => [domain.id, translate(domain.labelKey)]));
-  const visible = SETTINGS_LEAVES.filter((leaf) => domainLabels.has(leaf.domainId) && sheetVisible(leaf, user));
+  const visible = allSettingsLeaves().filter((leaf) => domainLabels.has(leaf.domainId) && sheetVisible(leaf, user));
   const hit = (text) => normalizeSettingsSearch(text).includes(needle);
 
   const leaves = visible.filter((leaf) => hit(
-    `${translate(leaf.labelKey)} ${translate(leaf.descriptionKey)} ${domainLabels.get(leaf.domainId)}`,
+    `${settingsLeafLabel(leaf, translate)} ${settingsLeafDescription(leaf, translate)} ${domainLabels.get(leaf.domainId)}`,
   ));
   const leafIds = new Set(leaves.map((leaf) => leaf.id));
 
@@ -1041,11 +1088,11 @@ export function searchSettings(query, { user, translate }) {
   const options = [];
   for (const leaf of visible) {
     for (const section of settingsSheetSections(leaf, user)) {
-      const label = translate(section.labelKey);
+      const label = leaf.extensionModule ? settingsLeafLabel(leaf, translate) : translate(section.labelKey);
       // Ein Abschnitt, der sein Blatt IST (Konto, Haushalt), traegt denselben
       // Namen - der Treffer staende doppelt da.
       if (!leafIds.has(leaf.id) && section.id !== leaf.id
-        && hit(`${label} ${translate(section.descriptionKey)}`)) {
+        && hit(`${label} ${leaf.extensionModule ? settingsLeafDescription(leaf, translate) : translate(section.descriptionKey)}`)) {
         sections.push({ leaf, section, label });
       }
       for (const option of (section.options ?? []).map(optionEntry)) {

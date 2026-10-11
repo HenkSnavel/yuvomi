@@ -10,6 +10,7 @@ modules/
     module.json
     index.js
     style.css
+    settings.js
 ```
 
 The folder name must match the manifest `id`. A module installed from Settings gets its folder named after the `id` automatically (see [Installing From Settings](#installing-from-settings)), so the folder in a repository or archive may be called anything.
@@ -25,6 +26,7 @@ The folder name must match the manifest `id`. A module installed from Settings g
   "description": "Adds a small page to Yuvomi.",
   "entry": "index.js",
   "style": "style.css",
+  "settings": { "entry": "settings.js", "adminOnly": true, "labelKey": "settings" },
   "icon": "box",
   "accent": "#6366F1",
   "menu": {
@@ -50,6 +52,16 @@ Required fields:
 Optional fields:
 
 - `style`: a relative `.css` file loaded only for this module page.
+- `settings.entry`: optional relative `.js` file exporting `render(container, { user, query })`.
+  It adds a sheet at Settings -> Modules -> your module, even when `menu.show` is false.
+  The sheet uses the module icon and accent. Disabled or errored modules have no sheet.
+- `settings.adminOnly`: optional boolean, default `true`. It hides the sheet from non-admins.
+  This is a UI gate, like core settings sheets, not an API authorization boundary: module
+  JavaScript assets remain readable to authenticated users. Protect every settings API action
+  on the server with the caller's role and `ext:<module-id>` permissions. A module with
+  `adminOnly: false` should still enforce write permissions on its API.
+- `settings.labelKey`: optional extension locale key for the sheet title. If absent, the
+  module menu label is used. If the translation is missing, the static menu label or name is used.
 - `menu.show`: set to `false` if the module should not appear in the left menu.
 - `menu.label`, `menu.icon`, `menu.order`: left-menu label, Lucide icon name, and order.
 - `accent`: a `#RRGGBB` color. It is your module's **tone**: the app exposes it as
@@ -75,6 +87,29 @@ Optional fields:
   measured modes; `full` and `split` roots take the shell height, so a body section can scroll
   internally without your CSS sizing the page. `full` is the one mode whose body has no gutter.
 - `page.navigation` / `page.responsive`: currently `standard` only.
+
+## Settings Entry
+
+A settings entry uses the same protected module asset route, relative path validation,
+module enable check, and browser CSP as the main page entry. It renders inside a Settings
+sheet, so use the existing Settings components and DOM APIs to build its content. The
+entry is imported only when the sheet opens. It is not a separate iframe or security
+sandbox; browser code has the same trust boundary as any extension page.
+
+```js
+import { t } from '/i18n.js';
+
+export async function render(container, { user, query }) {
+  const heading = document.createElement('h2');
+  heading.textContent = t('extensions.example-module.settings');
+  container.replaceChildren(heading);
+}
+```
+
+The URL is `/settings/modules/ext/<module-id>`; direct links and the Settings search
+use the same sheet. The module's settings entry should be a separate file from its main
+page if it needs different controls. The `modules/` directory contains no committed
+example module; the manifest and entry above are the example.
 
 ## Client Entry
 

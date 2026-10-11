@@ -52,8 +52,10 @@ function writeModule(folder, manifest, files = {}) {
 writeModule('alpha-mod', {
   id: 'alpha-mod', name: 'Alpha', version: '1.0.0', description: 'Alpha module',
   entry: 'index.js', style: 'style.css', icon: 'star', accent: '#112233',
+  settings: { entry: 'settings.js', labelKey: 'settings' },
   menu: { order: 10, label: 'Alpha Menu', icon: 'sparkles', show: true },
-}, { 'index.js': 'export default {};\n', 'style.css': '.alpha{}\n' });
+}, { 'index.js': 'export default {};\n', 'style.css': '.alpha{}\n',
+  'settings.js': 'export async function render() {}\n' });
 
 // Minimal-Manifest: prüft die Default-Ableitungen (accent-Fallback, menu-Defaults,
 // style=null). menu.show=false ist reine UI-Sichtbarkeit, NICHT enabled.
@@ -85,6 +87,7 @@ writeModule('cap-mod', {
   id: 'cap-mod',
   name: 'Capabilities Module',
   entry: 'index.js',
+  settings: { entry: 'settings/admin.js', adminOnly: false },
   capabilities: {
     permissions: {
       module: { label: 'Cap Module', icon: 'star' },
@@ -103,8 +106,13 @@ writeModule('cap-mod', {
   },
 }, {
   'index.js': 'export async function render() {}\n',
+  'settings/admin.js': 'export async function render() {}\n',
   'widgets/tile.js': 'export async function renderWidget(c) { c.textContent = "ok"; }\n',
 });
+
+writeModule('bad-settings-mod', {
+  id: 'bad-settings-mod', entry: 'index.js', settings: { entry: '../outside.js' },
+}, { 'index.js': '' });
 
 writeModule('bad-cap-mod', {
   id: 'bad-cap-mod',
@@ -130,7 +138,7 @@ writeModule('i18n-mod', {
 
 const VALID_IDS = ['alpha-mod', 'beta-mod', 'omega-mod', 'cap-mod', 'i18n-mod'];
 const ERROR_IDS = ['broken-json-mod', 'mismatch-mod', 'no-entry-mod', 'bad-entry-mod',
-  'bad-style-mod', 'no-style-file-mod', 'bad-cap-mod'];
+  'bad-style-mod', 'no-style-file-mod', 'bad-settings-mod', 'bad-cap-mod'];
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -205,6 +213,9 @@ test('listModules(admin): valide Manifeste werden vollständig normalisiert', as
   assert.equal(alpha.accent, '#112233');
   assert.equal(alpha.status, 'enabled');
   assert.equal(alpha.enabled, true);
+  assert.deepEqual(alpha.settings, {
+    entry: '/api/v1/modules/assets/alpha-mod/settings.js', adminOnly: true, labelKey: 'settings',
+  });
   // Öffentliche Asset-URLs werden aus id + relativem Pfad gebaut.
   assert.equal(alpha.route.path, '/m/alpha-mod');
   assert.equal(alpha.route.entry, '/api/v1/modules/assets/alpha-mod/index.js');
@@ -221,6 +232,43 @@ test('listModules(admin): valide Manifeste werden vollständig normalisiert', as
   assert.equal(beta.menu.show, false, 'menu.show wird übernommen');
   assert.equal(beta.menu.label, 'beta-mod', 'menu.label fällt auf name zurück');
   assert.equal(beta.enabled, true, 'menu.show=false lässt das Modul dennoch enabled');
+});
+
+test('settings manifest fields survive normalization and invalid fields error', async () => {
+  const norm = (settings) => svc.normalizeManifest({ id: 'x-mod', entry: 'index.js', settings }, 'x-mod');
+  assert.equal(norm(undefined).settings, null);
+  assert.deepEqual(norm({ entry: 'config/settings.js', adminOnly: false, labelKey: 'settings' }).settings, {
+    entry: '/api/v1/modules/assets/x-mod/config/settings.js', adminOnly: false, labelKey: 'settings',
+  });
+  for (const settings of [null, [], {}, { entry: '../outside.js' }, { entry: 'x.css' },
+    { entry: 'x.js', adminOnly: 'yes' }, { entry: 'x.js', labelKey: '../bad' }]) {
+    assert.throws(() => norm(settings), /settings/);
+  }
+  const mods = await svc.listModules({ admin: true });
+  assert.equal(mods.find((mod) => mod.id === 'bad-settings-mod').status, 'error');
+});
+
+test('extension settings sheets follow enable state, role and module permissions', async () => {
+  const registry = await import('../public/settings/registry.js');
+  const permissions = await import('../public/permissions.js');
+  registry.setExtensionSettingsModules(await svc.listModules());
+  const admin = { role: 'admin' };
+  const member = { role: 'member' };
+  assert.ok(registry.findSettingsLeaf('/settings/modules/ext/alpha-mod', admin));
+  assert.equal(registry.findSettingsLeaf('/settings/modules/ext/alpha-mod', member), null);
+  assert.ok(registry.findSettingsLeaf('/settings/modules/ext/cap-mod', member));
+  assert.ok(registry.settingsSheetsForDomain('modules', member)
+    .some((sheet) => sheet.path === '/settings/modules/ext/cap-mod'));
+  permissions.setExtensionNavMap(await svc.listModules());
+  permissions.setPermissions({ modules: { 'ext:cap-mod': 'none' } });
+  assert.equal(registry.findSettingsLeaf('/settings/modules/ext/cap-mod', member), null);
+  permissions.clearPermissions();
+  await svc.setModuleEnabled('cap-mod', false);
+  registry.setExtensionSettingsModules(await svc.listModules());
+  assert.equal(registry.findSettingsLeaf('/settings/modules/ext/cap-mod', admin), null);
+  await svc.setModuleEnabled('cap-mod', true);
+  registry.setExtensionSettingsModules(await svc.listModules());
+  db.prepare("DELETE FROM sync_config WHERE key = 'third_party_disabled_modules'").run();
 });
 
 // ── Formatvertrag des Manifests (#919 Folgearbeit) ──────────────────────────────

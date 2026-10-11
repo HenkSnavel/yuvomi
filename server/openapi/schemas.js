@@ -1338,6 +1338,15 @@ export const schemas = {
                 style: { type: ['string', 'null'] },
               },
             },
+            settings: {
+              type: ['object', 'null'],
+              description: 'Optional settings sheet metadata. adminOnly controls UI visibility; module API authorization is separate.',
+              properties: {
+                entry: { type: 'string', description: 'Protected module asset URL for the settings JavaScript entry.' },
+                adminOnly: { type: 'boolean' },
+                labelKey: { type: ['string', 'null'] },
+              },
+            },
             menu: {
               type: 'object',
               properties: {
