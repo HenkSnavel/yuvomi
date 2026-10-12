@@ -859,3 +859,31 @@ test('isWidgetId nimmt Kern- und Namensraum-Ids an und weist kaputte ab (#1013)'
   assert.equal(isNamespacedWidgetId('weather'), false);
   assert.equal(isNamespacedWidgetId('my-addon:chart'), true);
 });
+
+test('web-installed settings sheets stay hidden until approval and validate the settings entry', async () => {
+  const registry = await import('../public/settings/registry.js');
+  const id = 'installed-settings';
+  const folder = path.join(MODULES_DIR, id);
+  const manifest = { id, name: 'Installed settings', entry: 'index.js',
+    settings: { entry: 'settings.js', sections: ['mine', 'household'] } };
+  writeModule(id, manifest, { 'index.js': '', 'settings.js': '', '.yuvomi-install.json': installRecord() });
+  try {
+    await svc.loadModuleDir(folder, id);
+    registry.setExtensionSettingsModules(await svc.listModules({ admin: true }));
+    assert.equal(registry.findSettingsLeaf(`/settings/modules/ext/${id}`, { role: 'admin' }), null);
+    assert.equal(registry.extensionSettingsPaths().includes(`/settings/modules/ext/${id}`), false);
+    await svc.setModuleEnabled(id, true);
+    registry.setExtensionSettingsModules(await svc.listModules());
+    assert.ok(registry.findSettingsLeaf(`/settings/modules/ext/${id}`, { role: 'member' }));
+    assert.equal(registry.settingsSheetsForDomain('modules', { role: 'admin' }).at(-1).placement, 'end');
+    await svc.setModuleEnabled(id, false);
+    registry.setExtensionSettingsModules(await svc.listModules({ admin: true }));
+    assert.equal(registry.findSettingsLeaf(`/settings/modules/ext/${id}`, { role: 'admin' }), null);
+    fs.rmSync(path.join(folder, 'settings.js'));
+    await assert.rejects(svc.loadModuleDir(folder, id), /settings.entry file does not exist/);
+  } finally {
+    registry.setExtensionSettingsModules([]);
+    fs.rmSync(folder, { recursive: true, force: true });
+    clearDisabledConfig();
+  }
+});
