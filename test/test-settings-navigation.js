@@ -75,6 +75,41 @@ import {
 
 const member = { role: 'member' };
 const admin = { role: 'admin' };
+
+test('extensie-instellingen renderen elke zichtbare sectie met sectie, gebruiker en query', async () => {
+  const registry = await import('../public/settings/registry.js');
+  const { __test } = await import('/settings/shell.js');
+  const { installMiniDom } = await import('./mini-dom.js');
+  const restore = installMiniDom();
+  const entry = `data:text/javascript,${encodeURIComponent(`
+    export async function render(container, { section, user, query }) {
+      container.textContent = JSON.stringify({ section, userId: user.id, source: query.get('source') });
+    }
+  `)}`;
+  registry.setExtensionSettingsModules([{
+    id: 'section-test', name: 'Section test', enabled: true, status: 'enabled',
+    settings: { entry, sections: ['household', 'mine'] },
+  }]);
+  try {
+    const path = '/settings/modules/ext/section-test';
+    for (const [user, expected] of [
+      [{ id: 1, role: 'admin' }, ['mine', 'household']],
+      [{ id: 2, role: 'member' }, ['mine']],
+    ]) {
+      const leaf = registry.findSettingsLeaf(path, user);
+      const rendered = [];
+      for (const section of registry.settingsSheetSections(leaf, user)) {
+        const host = document.createElement('div');
+        await __test.renderSheetSection(host, section, user, new URLSearchParams('source=direct'));
+        rendered.push(JSON.parse(host.textContent));
+      }
+      assert.deepEqual(rendered, expected.map((section) => ({ section, userId: user.id, source: 'direct' })));
+    }
+  } finally {
+    registry.setExtensionSettingsModules([]);
+    restore();
+  }
+});
 const registryTranslationKeys = [
   ...SETTINGS_DOMAINS.map((domain) => domain.labelKey),
   ...SETTINGS_LEAVES.flatMap((leaf) => [leaf.labelKey, leaf.descriptionKey]),
@@ -3768,7 +3803,7 @@ test('R17: die Sprungmarken heissen wie die Ueberschriften der Abschnitte, nicht
   assert.match(fn, /link\.textContent = text/);
   assert.match(shell, /link\.dataset\.jumpSection = target\.id/, 'die Marke weiss, zu welchem Traeger sie gehoert');
   const section = shell.slice(shell.indexOf('async function renderSheetSection('), shell.indexOf('async function renderLeafContent('));
-  assert.match(section, /await module\.render\(host, \{ user, query \}\);[\s\S]*?syncJumpLabels\(host\.closest\?\.\('\.settings-leaf'\)\)/,
+  assert.match(section, /await module\.render\(host, [^\n]+\);[\s\S]*?syncJumpLabels\(host\.closest\?\.\('\.settings-leaf'\)\)/,
     'jeder fertige Abschnitt zieht seine Marke nach, auch nach der Wartefrist');
   const leaf = shell.slice(shell.indexOf('async function renderLeafContent('), shell.indexOf('function levelScopedHeadings('));
   assert.match(leaf, /await awaitSections\([\s\S]*?\);[\s\S]*?jump\?\.classList\.remove\('settings-sheet-jump--pending'\)/,

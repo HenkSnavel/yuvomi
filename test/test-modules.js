@@ -52,7 +52,7 @@ function writeModule(folder, manifest, files = {}) {
 writeModule('alpha-mod', {
   id: 'alpha-mod', name: 'Alpha', version: '1.0.0', description: 'Alpha module',
   entry: 'index.js', style: 'style.css', icon: 'star', accent: '#112233',
-  settings: { entry: 'settings.js', labelKey: 'settings' },
+  settings: { entry: 'settings.js', sections: ['household'], labelKey: 'settings' },
   menu: { order: 10, label: 'Alpha Menu', icon: 'sparkles', show: true },
 }, { 'index.js': 'export default {};\n', 'style.css': '.alpha{}\n',
   'settings.js': 'export async function render() {}\n' });
@@ -87,7 +87,7 @@ writeModule('cap-mod', {
   id: 'cap-mod',
   name: 'Capabilities Module',
   entry: 'index.js',
-  settings: { entry: 'settings/admin.js', adminOnly: false },
+  settings: { entry: 'settings/admin.js', sections: ['household', 'mine'] },
   capabilities: {
     permissions: {
       module: { label: 'Cap Module', icon: 'star' },
@@ -214,7 +214,7 @@ test('listModules(admin): valide Manifeste werden vollständig normalisiert', as
   assert.equal(alpha.status, 'enabled');
   assert.equal(alpha.enabled, true);
   assert.deepEqual(alpha.settings, {
-    entry: '/api/v1/modules/assets/alpha-mod/settings.js', adminOnly: true, labelKey: 'settings',
+    entry: '/api/v1/modules/assets/alpha-mod/settings.js', sections: ['household'], labelKey: 'settings',
   });
   // Öffentliche Asset-URLs werden aus id + relativem Pfad gebaut.
   assert.equal(alpha.route.path, '/m/alpha-mod');
@@ -234,14 +234,19 @@ test('listModules(admin): valide Manifeste werden vollständig normalisiert', as
   assert.equal(beta.enabled, true, 'menu.show=false lässt das Modul dennoch enabled');
 });
 
-test('settings manifest fields survive normalization and invalid fields error', async () => {
+test('settings vereisen expliciete geldige secties en behouden hun asset-URL', async () => {
   const norm = (settings) => svc.normalizeManifest({ id: 'x-mod', entry: 'index.js', settings }, 'x-mod');
   assert.equal(norm(undefined).settings, null);
-  assert.deepEqual(norm({ entry: 'config/settings.js', adminOnly: false, labelKey: 'settings' }).settings, {
-    entry: '/api/v1/modules/assets/x-mod/config/settings.js', adminOnly: false, labelKey: 'settings',
-  });
-  for (const settings of [null, [], {}, { entry: '../outside.js' }, { entry: 'x.css' },
-    { entry: 'x.js', adminOnly: 'yes' }, { entry: 'x.js', labelKey: '../bad' }]) {
+  for (const sections of [['mine'], ['household'], ['mine', 'household'], ['household', 'mine']]) {
+    assert.deepEqual(norm({ entry: 'config/settings.js', sections, labelKey: 'settings' }).settings, {
+      entry: '/api/v1/modules/assets/x-mod/config/settings.js', sections, labelKey: 'settings',
+    });
+  }
+  for (const sections of [undefined, null, [], 'mine', {}, ['other'], ['mine', 'other'], ['mine', 'mine'], [null]]) {
+    assert.throws(() => norm({ entry: 'settings.js', sections }), /settings.sections/);
+  }
+  for (const settings of [null, [], {}, { entry: '../outside.js', sections: ['mine'] },
+    { entry: 'x.css', sections: ['mine'] }, { entry: 'x.js', sections: ['mine'], labelKey: '../bad' }]) {
     assert.throws(() => norm(settings), /settings/);
   }
   const mods = await svc.listModules({ admin: true });
@@ -256,16 +261,30 @@ test('extension settings sheets follow enable state, role and module permissions
   const member = { role: 'member' };
   assert.ok(registry.findSettingsLeaf('/settings/modules/ext/alpha-mod', admin));
   assert.equal(registry.findSettingsLeaf('/settings/modules/ext/alpha-mod', member), null);
-  assert.ok(registry.findSettingsLeaf('/settings/modules/ext/cap-mod', member));
+  assert.equal(registry.settingsSheetsForDomain('modules', member)
+    .some((sheet) => sheet.path === '/settings/modules/ext/alpha-mod'), false);
+  assert.deepEqual(registry.searchSettings('Alpha', { user: member, translate: (key) => key }),
+    { leaves: [], sections: [], options: [] });
+  assert.ok(registry.searchSettings('Alpha', { user: admin, translate: (key) => key })
+    .leaves.some((sheet) => sheet.path === '/settings/modules/ext/alpha-mod'));
+  const mixed = registry.findSettingsLeaf('/settings/modules/ext/cap-mod', member);
+  assert.ok(mixed);
+  assert.deepEqual(registry.settingsSheetSections(mixed, member).map((section) => section.scope), ['mine']);
+  const adminSections = registry.settingsSheetSections(mixed, admin);
+  assert.deepEqual(adminSections.map((section) => section.scope), ['mine', 'household']);
+  assert.equal(new Set(adminSections.map((section) => section.id)).size, 2);
   assert.ok(registry.settingsSheetsForDomain('modules', member)
     .some((sheet) => sheet.path === '/settings/modules/ext/cap-mod'));
   permissions.setExtensionNavMap(await svc.listModules());
   permissions.setPermissions({ modules: { 'ext:cap-mod': 'none' } });
   assert.equal(registry.findSettingsLeaf('/settings/modules/ext/cap-mod', member), null);
+  assert.deepEqual(registry.searchSettings('Capabilities', { user: member, translate: (key) => key }),
+    { leaves: [], sections: [], options: [] });
   permissions.clearPermissions();
   await svc.setModuleEnabled('cap-mod', false);
   registry.setExtensionSettingsModules(await svc.listModules());
   assert.equal(registry.findSettingsLeaf('/settings/modules/ext/cap-mod', admin), null);
+  assert.equal(registry.extensionSettingsPaths().includes('/settings/modules/ext/cap-mod'), false);
   await svc.setModuleEnabled('cap-mod', true);
   registry.setExtensionSettingsModules(await svc.listModules());
   db.prepare("DELETE FROM sync_config WHERE key = 'third_party_disabled_modules'").run();

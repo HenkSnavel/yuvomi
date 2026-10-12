@@ -163,8 +163,11 @@ export function normalizeManifest(raw, folderName) {
     if (typeof settingsEntry !== 'string' || !isSafeRelativeFile(settingsEntry) || !settingsEntry.endsWith('.js')) {
       throw new Error('module.json settings.entry must be a safe relative JavaScript file path.');
     }
-    if (rawSettings.adminOnly !== undefined && typeof rawSettings.adminOnly !== 'boolean') {
-      throw new Error('module.json settings.adminOnly must be a boolean.');
+    const sections = rawSettings.sections;
+    if (!Array.isArray(sections) || !sections.length
+      || !sections.every((section) => section === 'mine' || section === 'household')
+      || new Set(sections).size !== sections.length) {
+      throw new Error('module.json settings.sections must be a non-empty array of unique mine or household values.');
     }
     if (rawSettings.labelKey !== undefined
       && (typeof rawSettings.labelKey !== 'string' || !MENU_LABEL_KEY_RE.test(rawSettings.labelKey))) {
@@ -172,7 +175,7 @@ export function normalizeManifest(raw, folderName) {
     }
     settings = {
       entry: settingsEntry,
-      adminOnly: rawSettings.adminOnly !== false,
+      sections: [...sections],
       labelKey: rawSettings.labelKey || null,
     };
   }

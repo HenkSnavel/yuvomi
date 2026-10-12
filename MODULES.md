@@ -26,7 +26,7 @@ The folder name must match the manifest `id`. A module installed from Settings g
   "description": "Adds a small page to Yuvomi.",
   "entry": "index.js",
   "style": "style.css",
-  "settings": { "entry": "settings.js", "adminOnly": true, "labelKey": "settings" },
+  "settings": { "entry": "settings.js", "sections": ["mine", "household"], "labelKey": "settings" },
   "icon": "box",
   "accent": "#6366F1",
   "menu": {
@@ -52,16 +52,20 @@ Required fields:
 Optional fields:
 
 - `style`: a relative `.css` file loaded only for this module page.
-- `settings.entry`: optional relative `.js` file exporting `render(container, { user, query })`.
-  It adds a sheet at Settings -> Modules -> your module, even when `menu.show` is false.
-  The sheet uses the module icon and accent. Disabled or errored modules have no sheet.
-- `settings.adminOnly`: optional boolean, default `true`. It hides the sheet from non-admins.
-  This is a UI gate, like core settings sheets, not an API authorization boundary: module
-  JavaScript assets remain readable to authenticated users. Protect every settings API action
-  on the server with the caller's role and `ext:<module-id>` permissions. A module with
-  `adminOnly: false` should still enforce write permissions on its API.
-- `settings.labelKey`: optional extension locale key for the sheet title. If absent, the
-  module menu label is used. If the translation is missing, the static menu label or name is used.
+- `settings.entry`: optioneel relatief `.js`-bestand dat `render(container, { section, user, query })` exporteert.
+  Voegt een pagina toe onder Settings -> Modules -> jouw module, ook bij `menu.show: false`.
+  De pagina gebruikt het modulepictogram en de accentkleur. Uitgeschakelde modules en modules
+  met fouten hebben geen instellingenpagina.
+- `settings.sections`: verplicht zodra `settings` aanwezig is. Een niet-lege lijst met `mine`,
+  `household` of beide, zonder dubbele waarden. Er is geen standaardwaarde; ontbrekende of
+  ongeldige secties geven een modulefout. `mine` verschijnt voor ieder lid met toegang tot de
+  module; `household` alleen voor beheerders. Een pagina met uitsluitend `household` verschijnt
+  niet voor andere leden, ook niet in zoekresultaten of via een directe URL.
+  Dit bepaalt alleen zichtbaarheid in de interface. De module-API moet zelf rollen en
+  `ext:<module-id>`-rechten controleren bij iedere instellingenactie. JavaScript-assets blijven
+  leesbaar voor aangemelde gebruikers; het verbergen van de pagina verleent of bewaakt geen API-rechten.
+- `settings.labelKey`: optionele vertaalsleutel voor de paginatitel. Zonder deze sleutel wordt
+  de menunaam gebruikt; bij een ontbrekende vertaling de vaste menunaam of modulenaam.
 - `menu.show`: set to `false` if the module should not appear in the left menu.
 - `menu.label`, `menu.icon`, `menu.order`: left-menu label, Lucide icon name, and order.
 - `accent`: a `#RRGGBB` color. It is your module's **tone**: the app exposes it as
@@ -88,28 +92,33 @@ Optional fields:
   internally without your CSS sizing the page. `full` is the one mode whose body has no gutter.
 - `page.navigation` / `page.responsive`: currently `standard` only.
 
-## Settings Entry
+## Instellingenbestand
 
-A settings entry uses the same protected module asset route, relative path validation,
-module enable check, and browser CSP as the main page entry. It renders inside a Settings
-sheet, so use the existing Settings components and DOM APIs to build its content. The
-entry is imported only when the sheet opens. It is not a separate iframe or security
-sandbox; browser code has the same trust boundary as any extension page.
+Het instellingenbestand gebruikt dezelfde beschermde assetroute, padvalidatie,
+inschakelcontrole en browser-CSP als het hoofdbestand van de module. Gebruik de bestaande
+Settings-componenten en DOM-API's. Het bestand wordt pas geïmporteerd als de pagina opent.
+De code heeft dezelfde vertrouwensgrens als andere extensiepagina's; er is geen apart iframe
+of beveiligingssandbox.
+
+De shell roept `render` eenmaal per zichtbare opgegeven sectie aan, telkens met een eigen
+container binnen het bijbehorende blok "For me" of "For the household". Persoonlijke secties
+komen eerst. `section` bevat `mine` of `household`; `user` is de huidige gebruiker en `query`
+bevat de URL-parameters. Bouw uitsluitend de inhoud voor de meegegeven sectie.
 
 ```js
 import { t } from '/i18n.js';
 
-export async function render(container, { user, query }) {
+export async function render(container, { section, user, query }) {
   const heading = document.createElement('h2');
-  heading.textContent = t('extensions.example-module.settings');
+  heading.textContent = t(`extensions.example-module.settings.${section}`);
   container.replaceChildren(heading);
 }
 ```
 
-The URL is `/settings/modules/ext/<module-id>`; direct links and the Settings search
-use the same sheet. The module's settings entry should be a separate file from its main
-page if it needs different controls. The `modules/` directory contains no committed
-example module; the manifest and entry above are the example.
+De URL is `/settings/modules/ext/<module-id>`; directe links en zoeken gebruiken dezelfde
+pagina en zichtbaarheidsregels. Gebruik een apart instellingenbestand als de hoofdpagina
+andere bediening nodig heeft. Het manifest en de code hierboven dienen als voorbeeld;
+`modules/` bevat geen meegeleverde voorbeeldmodule.
 
 ## Client Entry
 

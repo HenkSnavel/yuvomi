@@ -47,13 +47,13 @@ export function setExtensionSettingsModules(modules) {
     module: `third-party-${module.id}`,
     extensionModule: module,
   }));
-  extensionSettingsSections = enabled.map((module) => Object.freeze({
-    id: `extension-${module.id}`,
+  extensionSettingsSections = enabled.flatMap((module) => module.settings.sections.map((scope) => Object.freeze({
+    id: `extension-${module.id}-${scope}`,
     sheetId: `extension-${module.id}`,
-    scope: module.settings.adminOnly ? 'household' : 'mine',
-    adminOnly: module.settings.adminOnly,
+    scope,
+    adminOnly: scope === 'household',
     loader: () => import(/* webpackIgnore: true */ module.settings.entry),
-  }));
+  })));
 }
 
 export function extensionSettingsPaths() {

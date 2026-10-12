@@ -888,7 +888,7 @@ async function renderSheetSection(host, section, user, query) {
       const module = await section.loader();
       if (typeof module.render !== 'function') throw new TypeError('Settings leaf must export render()');
       host.replaceChildren();
-      await module.render(host, { user, query });
+      await module.render(host, { user, query, section: section.scope });
       hydrateIcons(host);
       // Jeder fertige Abschnitt zieht seine Sprungmarke nach - auch einer, der
       // erst nach der Wartefrist des Blatts ankommt.
@@ -1232,4 +1232,4 @@ export async function renderSettingsShell(container, {
 }
 
 /** Nur fuer Tests (test-settings-navigation.js). */
-export const __test = { awaitSections, SECTION_WAIT_MS, revealActiveNavigationLink };
+export const __test = { awaitSections, SECTION_WAIT_MS, revealActiveNavigationLink, renderSheetSection };

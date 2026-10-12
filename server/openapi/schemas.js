@@ -1340,10 +1340,15 @@ export const schemas = {
             },
             settings: {
               type: ['object', 'null'],
-              description: 'Optional settings sheet metadata. adminOnly controls UI visibility; module API authorization is separate.',
+              description: 'Optionele instellingenpagina. sections bepaalt alleen zichtbaarheid; de module-API bewaakt autorisatie.',
+              required: ['entry', 'sections'],
               properties: {
                 entry: { type: 'string', description: 'Protected module asset URL for the settings JavaScript entry.' },
-                adminOnly: { type: 'boolean' },
+                sections: {
+                  type: 'array', minItems: 1, maxItems: 2, uniqueItems: true,
+                  items: { type: 'string', enum: ['mine', 'household'] },
+                  description: 'mine is zichtbaar voor leden; household alleen voor beheerders. Geen standaardwaarde.',
+                },
                 labelKey: { type: ['string', 'null'] },
               },
             },
