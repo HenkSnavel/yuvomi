@@ -52,20 +52,19 @@ Required fields:
 Optional fields:
 
 - `style`: a relative `.css` file loaded only for this module page.
-- `settings.entry`: optioneel relatief `.js`-bestand dat `render(container, { section, user, query })` exporteert.
-  Voegt een pagina toe onder Settings -> Modules -> jouw module, ook bij `menu.show: false`.
-  De pagina gebruikt het modulepictogram en de accentkleur. Uitgeschakelde modules en modules
-  met fouten hebben geen instellingenpagina.
-- `settings.sections`: verplicht zodra `settings` aanwezig is. Een niet-lege lijst met `mine`,
-  `household` of beide, zonder dubbele waarden. Er is geen standaardwaarde; ontbrekende of
-  ongeldige secties geven een modulefout. `mine` verschijnt voor ieder lid met toegang tot de
-  module; `household` alleen voor beheerders. Een pagina met uitsluitend `household` verschijnt
-  niet voor andere leden, ook niet in zoekresultaten of via een directe URL.
-  Dit bepaalt alleen zichtbaarheid in de interface. De module-API moet zelf rollen en
-  `ext:<module-id>`-rechten controleren bij iedere instellingenactie. JavaScript-assets blijven
-  leesbaar voor aangemelde gebruikers; het verbergen van de pagina verleent of bewaakt geen API-rechten.
-- `settings.labelKey`: optionele vertaalsleutel voor de paginatitel. Zonder deze sleutel wordt
-  de menunaam gebruikt; bij een ontbrekende vertaling de vaste menunaam of modulenaam.
+- `settings.entry`: optional relative `.js` file exporting `render(container, { section, user, query })`.
+  It adds a sheet at Settings -> Modules -> your module, even when `menu.show` is false.
+  The sheet uses the module icon and accent. Disabled or errored modules have no sheet.
+- `settings.sections`: required when `settings` is present. A non-empty array containing `mine`,
+  `household` or both, without duplicates. There is no default; missing or invalid sections
+  error the module. `mine` is shown to every member with access to the module; `household`
+  only to administrators. A household-only sheet is not offered to other members in the list,
+  in search results or by direct URL.
+  This is only a visibility gate. The module's own API must enforce roles and `ext:<module-id>`
+  permissions for every settings action. JavaScript assets remain readable to authenticated
+  users; hiding a sheet neither grants nor enforces API permissions.
+- `settings.labelKey`: optional extension locale key for the sheet title. If absent, the
+  module menu label is used. If the translation is missing, the static menu label or name is used.
 - `menu.show`: set to `false` if the module should not appear in the left menu.
 - `menu.label`, `menu.icon`, `menu.order`: left-menu label, Lucide icon name, and order.
 - `accent`: a `#RRGGBB` color. It is your module's **tone**: the app exposes it as
@@ -92,18 +91,18 @@ Optional fields:
   internally without your CSS sizing the page. `full` is the one mode whose body has no gutter.
 - `page.navigation` / `page.responsive`: currently `standard` only.
 
-## Instellingenbestand
+## Settings Entry
 
-Het instellingenbestand gebruikt dezelfde beschermde assetroute, padvalidatie,
-inschakelcontrole en browser-CSP als het hoofdbestand van de module. Gebruik de bestaande
-Settings-componenten en DOM-API's. Het bestand wordt pas geïmporteerd als de pagina opent.
-De code heeft dezelfde vertrouwensgrens als andere extensiepagina's; er is geen apart iframe
-of beveiligingssandbox.
+A settings entry uses the same protected module asset route, relative path validation,
+module enable check, and browser CSP as the main page entry. It renders inside a Settings
+sheet, so use the existing Settings components and DOM APIs to build its content. The
+entry is imported only when the sheet opens. It is not a separate iframe or security
+sandbox; browser code has the same trust boundary as any extension page.
 
-De shell roept `render` eenmaal per zichtbare opgegeven sectie aan, telkens met een eigen
-container binnen het bijbehorende blok "For me" of "For the household". Persoonlijke secties
-komen eerst. `section` bevat `mine` of `household`; `user` is de huidige gebruiker en `query`
-bevat de URL-parameters. Bouw uitsluitend de inhoud voor de meegegeven sectie.
+The shell calls `render` once per visible declared section, each time with its own container
+inside the matching "For me" or "For the household" block. Personal sections come first.
+`section` is `mine` or `household`; `user` is the current user and `query` contains the URL
+parameters. Render only the content for the supplied section.
 
 ```js
 import { t } from '/i18n.js';
@@ -115,10 +114,10 @@ export async function render(container, { section, user, query }) {
 }
 ```
 
-De URL is `/settings/modules/ext/<module-id>`; directe links en zoeken gebruiken dezelfde
-pagina en zichtbaarheidsregels. Gebruik een apart instellingenbestand als de hoofdpagina
-andere bediening nodig heeft. Het manifest en de code hierboven dienen als voorbeeld;
-`modules/` bevat geen meegeleverde voorbeeldmodule.
+The URL is `/settings/modules/ext/<module-id>`; direct links and Settings search use the same
+sheet and visibility rules. The module's settings entry should be a separate file from its main
+page if it needs different controls. The `modules/` directory contains no committed
+example module; the manifest and entry above are the example.
 
 ## Client Entry
 

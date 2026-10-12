@@ -76,7 +76,7 @@ import {
 const member = { role: 'member' };
 const admin = { role: 'admin' };
 
-test('extensie-instellingen renderen elke zichtbare sectie met sectie, gebruiker en query', async () => {
+test('extension settings render each visible section with section, user and query', async () => {
   const registry = await import('../public/settings/registry.js');
   const { __test } = await import('/settings/shell.js');
   const { installMiniDom } = await import('./mini-dom.js');

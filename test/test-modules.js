@@ -234,7 +234,7 @@ test('listModules(admin): valide Manifeste werden vollständig normalisiert', as
   assert.equal(beta.enabled, true, 'menu.show=false lässt das Modul dennoch enabled');
 });
 
-test('settings vereisen expliciete geldige secties en behouden hun asset-URL', async () => {
+test('settings require explicit valid sections and preserve their asset URL', async () => {
   const norm = (settings) => svc.normalizeManifest({ id: 'x-mod', entry: 'index.js', settings }, 'x-mod');
   assert.equal(norm(undefined).settings, null);
   for (const sections of [['mine'], ['household'], ['mine', 'household'], ['household', 'mine']]) {

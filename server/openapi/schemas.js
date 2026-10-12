@@ -1340,14 +1340,14 @@ export const schemas = {
             },
             settings: {
               type: ['object', 'null'],
-              description: 'Optionele instellingenpagina. sections bepaalt alleen zichtbaarheid; de module-API bewaakt autorisatie.',
+              description: 'Optional settings sheet. sections controls visibility only; the module API enforces authorization.',
               required: ['entry', 'sections'],
               properties: {
                 entry: { type: 'string', description: 'Protected module asset URL for the settings JavaScript entry.' },
                 sections: {
                   type: 'array', minItems: 1, maxItems: 2, uniqueItems: true,
                   items: { type: 'string', enum: ['mine', 'household'] },
-                  description: 'mine is zichtbaar voor leden; household alleen voor beheerders. Geen standaardwaarde.',
+                  description: 'mine is visible to members; household only to administrators. No default.',
                 },
                 labelKey: { type: ['string', 'null'] },
               },
