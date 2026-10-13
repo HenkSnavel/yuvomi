@@ -4,6 +4,7 @@ import { sortNavigationItems } from './module-order.js';
 // und dort zeigte ein absoluter Pfad auf die Dateisystem-Wurzel. Im Browser
 // loest beides auf dieselbe Adresse auf, es bleibt also EIN Rechte-Speicher.
 import { canAccessNavModule } from '../permissions.js';
+import { moduleDisplayLabel, resolveExtensionLabel } from '../utils/extension-i18n.js';
 
 export const SETTINGS_STORAGE_KEY = 'yuvomi:settings:path';
 export const LEGACY_SETTINGS_STORAGE_KEY = 'yuvomi:settings:tab';
@@ -52,7 +53,7 @@ export function setExtensionSettingsModules(modules) {
     sheetId: `extension-${module.id}`,
     scope,
     adminOnly: scope === 'household',
-    loader: () => import(/* webpackIgnore: true */ module.settings.entry),
+    loader: () => import(module.settings.entry),
   })));
 }
 
@@ -63,13 +64,8 @@ export function extensionSettingsPaths() {
 export function settingsLeafLabel(leaf, translate) {
   const module = leaf?.extensionModule;
   if (!module) return translate(leaf.labelKey);
-  const key = module.settings.labelKey || module.menu?.labelKey;
-  if (key) {
-    const fullKey = key.startsWith('extensions.') ? key : `extensions.${module.id}.${key}`;
-    const value = translate(fullKey);
-    if (value !== fullKey) return value;
-  }
-  return module.menu?.label || module.name || module.id;
+  // Same name as the navigation unless the sheet has its own translated title.
+  return resolveExtensionLabel(module.id, { labelKey: module.settings.labelKey, fallback: moduleDisplayLabel(module) });
 }
 
 export function settingsLeafDescription(leaf, translate) {

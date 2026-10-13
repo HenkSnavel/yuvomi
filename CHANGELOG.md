@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Extension modules can add a Settings sheet.** An optional manifest field places a module
+- **Extension modules can add a Settings sheet** (#1856). An optional manifest field places a module
   under Settings -> Modules, with personal sections for members and household sections for
   administrators. Disabled modules disappear from the list; module APIs remain responsible
   for enforcing roles and permissions.

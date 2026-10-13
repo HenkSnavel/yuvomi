@@ -275,19 +275,23 @@ test('extension settings sheets follow enable state, role and module permissions
   assert.equal(new Set(adminSections.map((section) => section.id)).size, 2);
   assert.ok(registry.settingsSheetsForDomain('modules', member)
     .some((sheet) => sheet.path === '/settings/modules/ext/cap-mod'));
-  permissions.setExtensionNavMap(await svc.listModules());
-  permissions.setPermissions({ modules: { 'ext:cap-mod': 'none' } });
-  assert.equal(registry.findSettingsLeaf('/settings/modules/ext/cap-mod', member), null);
-  assert.deepEqual(registry.searchSettings('Capabilities', { user: member, translate: (key) => key }),
-    { leaves: [], sections: [], options: [] });
-  permissions.clearPermissions();
-  await svc.setModuleEnabled('cap-mod', false);
-  registry.setExtensionSettingsModules(await svc.listModules());
-  assert.equal(registry.findSettingsLeaf('/settings/modules/ext/cap-mod', admin), null);
-  assert.equal(registry.extensionSettingsPaths().includes('/settings/modules/ext/cap-mod'), false);
-  await svc.setModuleEnabled('cap-mod', true);
-  registry.setExtensionSettingsModules(await svc.listModules());
-  db.prepare("DELETE FROM sync_config WHERE key = 'third_party_disabled_modules'").run();
+  try {
+    permissions.setExtensionNavMap(await svc.listModules());
+    permissions.setPermissions({ modules: { 'ext:cap-mod': 'none' } });
+    assert.equal(registry.findSettingsLeaf('/settings/modules/ext/cap-mod', member), null);
+    assert.deepEqual(registry.searchSettings('Capabilities', { user: member, translate: (key) => key }),
+      { leaves: [], sections: [], options: [] });
+    permissions.clearPermissions();
+    await svc.setModuleEnabled('cap-mod', false);
+    registry.setExtensionSettingsModules(await svc.listModules());
+    assert.equal(registry.findSettingsLeaf('/settings/modules/ext/cap-mod', admin), null);
+    assert.equal(registry.extensionSettingsPaths().includes('/settings/modules/ext/cap-mod'), false);
+  } finally {
+    permissions.clearPermissions();
+    await svc.setModuleEnabled('cap-mod', true);
+    registry.setExtensionSettingsModules(await svc.listModules());
+    db.prepare("DELETE FROM sync_config WHERE key = 'third_party_disabled_modules'").run();
+  }
 });
 
 // ── Formatvertrag des Manifests (#919 Folgearbeit) ──────────────────────────────

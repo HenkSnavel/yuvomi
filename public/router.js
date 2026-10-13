@@ -544,11 +544,12 @@ function setAppVersion(version) {
  * Seitenwechsel in einer SPA bekommt (WCAG 2.4.2, Level A). Zugleich Tab-Text,
  * Verlaufseintrag und Lesezeichen.
  *
- * Die Titel kommen aus ROUTES, nicht aus einer zweiten Liste daneben - siehe
- * die Begründung am Kopf der Routentabelle.
+ * Die Titel kommen aus den Routen selbst (ROUTES plus die zur Laufzeit
+ * erzeugten), nicht aus einer zweiten Liste daneben - siehe die Begründung am
+ * Kopf der Routentabelle.
  */
 function routeTitle(path) {
-  const titleKey = ROUTES.find((route) => route.path === path)?.titleKey;
+  const titleKey = allRoutes().find((route) => route.path === path)?.titleKey;
   if (titleKey) return t(titleKey);
 
   // Dritt-Module bringen ihren Titel im eigenen Manifest mit; sie stehen nicht

@@ -624,11 +624,15 @@ function createLeafHeader(leaf) {
   heading.className = 'settings-leaf-header__title';
   heading.textContent = settingsLeafLabel(leaf, t);
 
-  const description = document.createElement('p');
-  description.className = 'settings-leaf-header__description';
-  description.textContent = settingsLeafDescription(leaf, t);
-
-  header.append(heading, description);
+  header.appendChild(heading);
+  // Extension sheets without a manifest description get no empty paragraph.
+  const text = settingsLeafDescription(leaf, t);
+  if (text) {
+    const description = document.createElement('p');
+    description.className = 'settings-leaf-header__description';
+    description.textContent = text;
+    header.appendChild(description);
+  }
   return header;
 }
 
@@ -1232,4 +1236,4 @@ export async function renderSettingsShell(container, {
 }
 
 /** Nur fuer Tests (test-settings-navigation.js). */
-export const __test = { awaitSections, SECTION_WAIT_MS, revealActiveNavigationLink, renderSheetSection };
+export const __test = { awaitSections, SECTION_WAIT_MS, revealActiveNavigationLink, renderLeafContent };
