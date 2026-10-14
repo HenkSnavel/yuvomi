@@ -256,26 +256,28 @@ test('settings require explicit valid sections and preserve their asset URL', as
 test('extension settings sheets follow enable state, role and module permissions', async () => {
   const registry = await import('../public/settings/registry.js');
   const permissions = await import('../public/permissions.js');
-  registry.setExtensionSettingsModules(await svc.listModules());
   const admin = { role: 'admin' };
   const member = { role: 'member' };
-  assert.ok(registry.findSettingsLeaf('/settings/modules/ext/alpha-mod', admin));
-  assert.equal(registry.findSettingsLeaf('/settings/modules/ext/alpha-mod', member), null);
-  assert.equal(registry.settingsSheetsForDomain('modules', member)
-    .some((sheet) => sheet.path === '/settings/modules/ext/alpha-mod'), false);
-  assert.deepEqual(registry.searchSettings('Alpha', { user: member, translate: (key) => key }),
-    { leaves: [], sections: [], options: [] });
-  assert.ok(registry.searchSettings('Alpha', { user: admin, translate: (key) => key })
-    .leaves.some((sheet) => sheet.path === '/settings/modules/ext/alpha-mod'));
-  const mixed = registry.findSettingsLeaf('/settings/modules/ext/cap-mod', member);
-  assert.ok(mixed);
-  assert.deepEqual(registry.settingsSheetSections(mixed, member).map((section) => section.scope), ['mine']);
-  const adminSections = registry.settingsSheetSections(mixed, admin);
-  assert.deepEqual(adminSections.map((section) => section.scope), ['mine', 'household']);
-  assert.equal(new Set(adminSections.map((section) => section.id)).size, 2);
-  assert.ok(registry.settingsSheetsForDomain('modules', member)
-    .some((sheet) => sheet.path === '/settings/modules/ext/cap-mod'));
   try {
+    registry.setExtensionSettingsModules(await svc.listModules());
+    assert.ok(registry.findSettingsLeaf('/settings/modules/ext/alpha-mod', admin));
+    assert.equal(registry.findSettingsLeaf('/settings/modules/ext/alpha-mod', admin).icon, 'sparkles',
+      'the sheet shows the same icon as the navigation (menu.icon before icon)');
+    assert.equal(registry.findSettingsLeaf('/settings/modules/ext/alpha-mod', member), null);
+    assert.equal(registry.settingsSheetsForDomain('modules', member)
+      .some((sheet) => sheet.path === '/settings/modules/ext/alpha-mod'), false);
+    assert.deepEqual(registry.searchSettings('Alpha', { user: member, translate: (key) => key }),
+      { leaves: [], sections: [], options: [] });
+    assert.ok(registry.searchSettings('Alpha', { user: admin, translate: (key) => key })
+      .leaves.some((sheet) => sheet.path === '/settings/modules/ext/alpha-mod'));
+    const mixed = registry.findSettingsLeaf('/settings/modules/ext/cap-mod', member);
+    assert.ok(mixed);
+    assert.deepEqual(registry.settingsSheetSections(mixed, member).map((section) => section.scope), ['mine']);
+    const adminSections = registry.settingsSheetSections(mixed, admin);
+    assert.deepEqual(adminSections.map((section) => section.scope), ['mine', 'household']);
+    assert.equal(new Set(adminSections.map((section) => section.id)).size, 2);
+    assert.ok(registry.settingsSheetsForDomain('modules', member)
+      .some((sheet) => sheet.path === '/settings/modules/ext/cap-mod'));
     permissions.setExtensionNavMap(await svc.listModules());
     permissions.setPermissions({ modules: { 'ext:cap-mod': 'none' } });
     assert.equal(registry.findSettingsLeaf('/settings/modules/ext/cap-mod', member), null);
@@ -288,6 +290,7 @@ test('extension settings sheets follow enable state, role and module permissions
     assert.equal(registry.extensionSettingsPaths().includes('/settings/modules/ext/cap-mod'), false);
   } finally {
     permissions.clearPermissions();
+    permissions.setExtensionNavMap([]);
     await svc.setModuleEnabled('cap-mod', true);
     registry.setExtensionSettingsModules(await svc.listModules());
     db.prepare("DELETE FROM sync_config WHERE key = 'third_party_disabled_modules'").run();

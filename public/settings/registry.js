@@ -44,7 +44,8 @@ export function setExtensionSettingsModules(modules) {
     id: `extension-${module.id}`,
     domainId: 'modules',
     path: `/settings/modules/ext/${module.id}`,
-    icon: module.icon,
+    // Same icon as the navigation and the module list.
+    icon: module.menu?.icon || module.icon || 'box',
     module: `third-party-${module.id}`,
     extensionModule: module,
   }));

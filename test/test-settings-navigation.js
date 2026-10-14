@@ -125,7 +125,7 @@ test('extension settings sheet renders each section once inside its scope block'
   }
 });
 
-test('extension settings sheet carries the navigation name of its module', async () => {
+test('extension settings sheet carries the navigation name and icon of its module', async () => {
   const registry = await import('../public/settings/registry.js');
   const base = { id: 'name-test', name: 'Manifest name', enabled: true, status: 'enabled', menu: { label: 'Menu label' } };
   const label = (module) => {
@@ -137,6 +137,13 @@ test('extension settings sheet carries the navigation name of its module', async
     assert.equal(label({ ...base, settings: { entry: '/x.js', sections: ['mine'], labelKey: 'settings.title' } }), 'Menu label',
       'an untranslated settings.labelKey falls back to the navigation name');
     assert.equal(label({ ...base, menu: {}, settings: { entry: '/x.js', sections: ['mine'] } }), 'Manifest name');
+    const icon = (module) => {
+      registry.setExtensionSettingsModules([{ ...base, settings: { entry: '/x.js', sections: ['mine'] }, ...module }]);
+      return registry.findSettingsLeaf('/settings/modules/ext/name-test', { role: 'admin' }).icon;
+    };
+    assert.equal(icon({ icon: 'star', menu: { icon: 'sparkles' } }), 'sparkles');
+    assert.equal(icon({ icon: 'star', menu: {} }), 'star');
+    assert.equal(icon({ menu: {} }), 'box');
   } finally {
     registry.setExtensionSettingsModules([]);
   }
