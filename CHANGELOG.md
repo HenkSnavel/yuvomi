@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Extension modules can add a Settings sheet** (#1856). An optional manifest field places a module
+  under Settings -> Modules, with personal sections for members and household sections for
+  administrators. Disabled modules disappear from the list; module APIs remain responsible
+  for enforcing roles and permissions.
+
 ### Fixed
 
 - **A server whose `TZ` names an unknown time zone now runs in UTC.** Without a household time zone
@@ -19,11 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.77.2] - 2026-10-15
 
 ### Added
-
-- **Extension modules can add a Settings sheet** (#1856). An optional manifest field places a module
-  under Settings -> Modules, with personal sections for members and household sections for
-  administrators. Disabled modules disappear from the list; module APIs remain responsible
-  for enforcing roles and permissions.
 
 - **Budget overview: expense categories and subcategories show their share of the total.** The
   share stands quietly after the amount, the same way the Statistics tab already shows it. A

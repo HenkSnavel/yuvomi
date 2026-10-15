@@ -54,7 +54,7 @@ Optional fields:
 - `style`: a relative `.css` file loaded only for this module page.
 - `settings.entry`: optional relative `.js` file exporting `render(container, { section, user, query })`.
   It adds a sheet at Settings -> Modules -> your module, even when `menu.show` is false.
-  The sheet uses the module icon and accent. Disabled or errored modules have no sheet.
+  The sheet uses the same icon as the navigation entry, and the module accent. Disabled or errored modules have no sheet.
 - `settings.sections`: required when `settings` is present. A non-empty array containing `mine`,
   `household` or both, without duplicates. There is no default; missing or invalid sections
   error the module. `mine` is shown to every member with access to the module; `household`
